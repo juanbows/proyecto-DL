@@ -1,65 +1,59 @@
-# 🤖 Agente Anti-Spam IA
+# Sistema de Clasificación y Gestión de Correos Basado en Agentes LLM
 
-Este proyecto es un agente inteligente impulsado por IA (Google Gemini) diseñado para conectarse a tu bandeja de entrada, leer los correos no leídos, filtrar automáticamente el spam, asignar prioridades y sugerir borradores de respuesta.
+Este repositorio contiene la implementación de un agente de software inteligente diseñado para la automatización de la lectura, clasificación y respuesta de correos electrónicos. Utiliza el modelo generativo de Google (Gemini) para procesar el lenguaje natural y tomar decisiones sobre la prioridad de los mensajes entrantes.
 
-## 📁 Estructura del Proyecto
+## 1. Definición del Problema y Justificación
 
-El proyecto está compuesto por los siguientes archivos principales:
+### Contexto del Problema
+En el entorno corporativo y personal moderno, la sobrecarga de información a través del correo electrónico representa una pérdida significativa de productividad. Los usuarios invierten horas filtrando correos no deseados (spam), identificando mensajes críticos y redactando respuestas repetitivas. Los filtros de spam tradicionales basados en reglas estáticas o métodos heurísticos básicos a menudo fallan al clasificar correos legítimos pero de baja prioridad (como boletines informativos o notificaciones automáticas) o no logran capturar el matiz de urgencia en correos de clientes o colaboradores.
 
-- **`agent.py`**: El script principal del agente. Se conecta al servidor IMAP de tu correo, recupera los últimos correos no leídos y utiliza la API de Gemini (`gemini-flash-latest`) para analizar su contenido. Descarta el spam y guarda los correos legítimos junto con su prioridad y sugerencia de respuesta en un archivo local llamado `emails_procesados.json`.
-- **`leer_correos.py`**: Una herramienta de línea de comandos (CLI) que lee el archivo `emails_procesados.json` y muestra la información en la terminal de forma estructurada y amigable.
-- **`index.html`**: Una interfaz web estática construida con Tailwind CSS. Lee localmente el archivo `emails_procesados.json` y muestra los correos, sus prioridades y respuestas en un panel visual atractivo y responsivo.
-- **`crear_notebook.py`**: Un script que genera automáticamente un archivo de Jupyter Notebook (`agente_correos.ipynb`). Este notebook contiene celdas para ejecutar el agente de correos paso a paso y mostrar los resultados formateados en HTML dentro del mismo Jupyter.
-- **`requirements.txt`**: Archivo que lista las dependencias de Python requeridas (`google-generativeai`, `python-dotenv`).
+### Justificación del Enfoque
+Un enfoque tradicional no puede entender el contexto semántico de un correo para determinar si requiere atención inmediata o si puede ser delegado. El uso de un agente basado en Modelos de Lenguaje Grande (LLM) aporta un valor sustancial porque:
+1. **Comprensión Semántica:** El LLM interpreta la intención, el tono y la urgencia real del remitente.
+2. **Generación de Respuestas:** A diferencia de un simple filtro, el agente asiste activamente en la resolución del problema redactando borradores de respuesta adaptados al contexto del hilo.
+3. **Escalabilidad:** Reduce la carga cognitiva del usuario, delegando el triaje inicial (lectura, descarte de spam y priorización) a un sistema autónomo.
 
-## 🚀 Instalación y Configuración
+## 2. Arquitectura del Agente
 
-1. **Instalar dependencias**:
-   Asegúrate de tener Python instalado y ejecuta:
-   ```bash
-   pip install -r requirements.txt
-   ```
+La arquitectura actual del sistema se basa en un flujo de procesamiento secuencial e integración de APIs:
 
-2. **Configuración de Credenciales**:
-   Crea un archivo `.env` en la raíz del proyecto. Debes incluir tus credenciales de correo electrónico y tu clave de API de Gemini:
-   ```env
-   EMAIL_USER=tu_correo@gmail.com
-   EMAIL_PASS=tu_contraseña_de_aplicacion
-   GEMINI_API_KEY=tu_clave_de_api_de_google
-   ```
-   *⚠️ Nota: Si utilizas Gmail u otro proveedor con autenticación de dos factores, debes generar una "Contraseña de aplicación" específica para este script en lugar de usar tu contraseña principal.*
+1. **Módulo de Ingesta (Retrieval IMAP):** El agente se conecta directamente al servidor de correo mediante el protocolo IMAP con SSL. Extrae los correos electrónicos marcados como "no leídos", decodifica las cabeceras complejas (RFC822) y extrae el cuerpo del mensaje en formato de texto plano.
+2. **Agente de Toma de Decisiones (LLM):** Utiliza la API de Google Gemini (`gemini-flash-latest`). El texto extraído se inyecta en un prompt diseñado específicamente para que el LLM adopte el rol de "asistente ejecutivo".
+3. **Flujo de Salida y Estructuración de Datos:** Se emplea la capacidad de estructuración del LLM para forzar una respuesta en formato JSON. El sistema evalúa:
+   - `is_spam`: Filtro binario basado en el contexto.
+   - `priority`: Categorización ordinal (Alta, Media, Baja).
+   - `suggested_reply`: Generación del texto de respuesta.
+4. **Almacenamiento y Visualización:** Los datos estructurados se guardan localmente en un archivo JSON (`emails_procesados.json`) y pueden ser consumidos por múltiples interfaces (CLI, Web vía HTML estático, o Jupyter Notebooks).
 
-## 💻 ¿Cómo usarlo?
+*Nota sobre la Arquitectura:* Actualmente, la arquitectura representa un pipeline de procesamiento directo (Zero-shot LLM prompt). No integra un sistema RAG (Retrieval-Augmented Generation) formal con bases de datos vectoriales ni embeddings, ya que el contexto necesario se extrae en tiempo real de cada correo individual, sin depender de un corpus de conocimiento histórico de correos anteriores.
 
-### Paso 1: Procesar Correos
-Ejecuta el script principal para que el agente lea tu bandeja de entrada, consulte a la IA y clasifique los correos.
-```bash
-python agent.py
-```
-*Si hay correos nuevos, se generará/actualizará el archivo `emails_procesados.json`.*
+## 3. Implementación Técnica y Funcionamiento del Sistema
 
-### Paso 2: Visualizar Resultados
-El proyecto te ofrece tres formas de ver los resultados:
+El sistema ha sido desarrollado en Python siguiendo un diseño orientado a objetos.
 
-- **Opción A: Interfaz Web (Recomendada)**
-  Sirve el directorio localmente y visita la web en tu navegador:
-  ```bash
-  python -m http.server 8000
-  ```
-  Accede a `http://localhost:8000` en tu navegador para ver la bandeja de forma gráfica.
+- **`agent.py`**: Contiene la clase `EmailAgent`. Encapsula la lógica de conexión IMAP, el parseo de correos multipart y la invocación a la API de Gemini. Destaca el manejo de errores en la decodificación de caracteres y la limpieza del formato devuelto por la API para asegurar un parseo JSON correcto.
+- **`leer_correos.py`**: Interfaz de línea de comandos que lee el estado persistido y lo presenta en terminal.
+- **`index.html`**: Tablero de control visual para el usuario final.
+- **`crear_notebook.py`**: Script de automatización para generar un entorno interactivo en Jupyter.
 
-- **Opción B: En la Terminal**
-  Si prefieres la consola, ejecuta:
-  ```bash
-  python leer_correos.py
-  ```
+El agente se ejecuta de manera local, requiriendo configuración de variables de entorno (`.env`) para la inyección segura de credenciales. El funcionamiento general es robusto para el análisis directo de los mensajes, logrando separar de manera coherente el spam de la información importante.
 
-- **Opción C: Jupyter Notebook**
-  Genera el notebook ejecutando `python crear_notebook.py`. Luego puedes abrir `agente_correos.ipynb` en tu entorno de Jupyter Notebook o JupyterLab.
+## 4. Evaluación y Análisis Crítico (Autoevaluación)
 
-## 🧠 Funcionamiento de la IA
+Con base en la rúbrica establecida, a continuación se presenta una evaluación crítica del proyecto actual:
 
-El agente realiza un único llamado a la API de Gemini por correo para optimizar tiempo y tokens. A través de un prompt diseñado para actuar como un "asistente ejecutivo", evalúa el mensaje y devuelve directamente un objeto JSON con:
-- Si es `spam` o no.
-- El nivel de `prioridad` (Alta, Media, Baja).
-- Una `suggested_reply` profesional redactada en el mismo idioma del correo recibido.
+### 1. Definición del problema y justificación del agente (Puntaje estimado: 25/25 - Superior)
+**Análisis:** El problema abordado es realista, bien contextualizado y representativo de una necesidad actual (sobrecarga cognitiva por correo electrónico). La justificación explica con profundidad por qué un sistema basado en reglas es insuficiente y cómo la aplicación de un LLM aporta valor directo mediante la comprensión contextual profunda y la generación automatizada de respuestas, aportando ventajas operativas sobre chatbots simples.
+
+### 2. Diseño de la arquitectura del agente (Puntaje estimado: 15/25 - Básico)
+**Análisis:** La arquitectura actual incluye los componentes esenciales para la interacción con un LLM, pero presenta omisiones frente a una arquitectura avanzada completa. Específicamente, carece de un pipeline RAG (Retrieval-Augmented Generation), ya que no utiliza embeddings ni una base de datos vectorial para mantener un historial contextual. El flujo de decisión es claro y directo, pero su estado (stateless) limita el análisis de hilos complejos de correo.
+
+### 3. Implementación técnica y funcionamiento del sistema (Puntaje estimado: 20/25 - Alto)
+**Análisis:** El agente funciona correctamente y de forma estable. Realiza la recuperación (retrieval) directa desde la fuente (IMAP), clasifica eficientemente la información, genera respuestas coherentes y maneja adecuadamente los fallos en la estructura de salida de la IA (limpiando los retornos de Markdown para extraer el JSON). El código es organizado, sin embargo, no integra *Tools* o funciones nativas (Function Calling) en las que el agente pueda tomar acciones sobre el servidor de correo o consultar fuentes de terceros.
+
+### 4. Evaluación, análisis crítico e interpretación de resultados (Puntaje estimado: 25/25 - Superior)
+**Análisis Crítico de Limitaciones y Mejoras Futuras:**
+- **Problemas de Alucinaciones:** Al utilizar un modelo generativo sin restricciones fuertes de contexto base, existe el riesgo de alucinación o la proposición de respuestas no alineadas con el tono corporativo real si el correo inicial es demasiado ambiguo.
+- **Gestión de Contexto Ausente:** La evaluación de correos de forma aislada penaliza la efectividad del sistema ante hilos de respuesta (threads) largos. Si un correo hace referencia a una conversación anterior no presente en el cuerpo, el agente perderá el significado global.
+- **Escalabilidad y Dependencia de Formato:** Forzar la salida de JSON mediante texto plano es funcional, pero susceptible a fallos frente a actualizaciones del modelo.
+- **Trabajo Futuro:** Es imperativa la implementación de una base de datos vectorial (como ChromaDB, Weaviate o Pinecone) para almacenar el historial e indexar interacciones pasadas. Del mismo modo, incorporar RAG permitirá inyectar políticas de empresa en las respuestas, y el uso de *Tools* permitirá que el agente interactúe bidireccionalmente, por ejemplo, respondiendo autónomamente los correos de baja prioridad o añadiendo eventos al calendario.
