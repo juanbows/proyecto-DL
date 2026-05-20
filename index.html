@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente Anti-Spam IA</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-50 to-blue-100 min-h-screen text-gray-800 font-sans p-4 sm:p-8">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header -->
+        <header class="glass rounded-2xl p-6 mb-8 shadow-sm flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="bg-indigo-600 text-white p-3 rounded-xl shadow-md">
+                    <i class="fa-solid fa-robot text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900">Agente Anti-Spam IA</h1>
+                    <p class="text-sm text-gray-500">Filtrado inteligente impulsado por Gemini</p>
+                </div>
+            </div>
+            <button onclick="cargarCorreos()" class="bg-indigo-600 hover:bg-indigo-700 transition-colors text-white px-5 py-2.5 rounded-lg shadow-md font-medium flex items-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i> Refrescar Vista
+            </button>
+        </header>
+
+        <!-- Contenedor de Correos -->
+        <main id="emails-container" class="grid gap-6">
+            <!-- Loading state -->
+            <div class="text-center py-12">
+                <i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i>
+                <p class="text-gray-500">Cargando correos procesados...</p>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function cargarCorreos() {
+            const container = document.getElementById('emails-container');
+            container.innerHTML = '<div class="text-center py-12"><i class="fa-solid fa-spinner fa-spin text-4xl text-indigo-500 mb-4"></i><p class="text-gray-500">Cargando correos procesados...</p></div>';
+            
+            try {
+                // Agregar un timestamp para evitar la caché del navegador
+                const response = await fetch(`emails_procesados.json?t=${new Date().getTime()}`);
+                if (!response.ok) throw new Error('Archivo JSON no encontrado');
+                
+                const datos = await response.json();
+                
+                if (datos.length === 0) {
+                    container.innerHTML = `
+                        <div class="glass rounded-2xl p-12 text-center shadow-sm">
+                            <i class="fa-regular fa-envelope-open text-5xl text-gray-400 mb-4"></i>
+                            <h2 class="text-xl font-semibold text-gray-700">No hay correos nuevos</h2>
+                            <p class="text-gray-500 mt-2">La bandeja está limpia.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = '';
+                
+                datos.forEach(item => {
+                    const email = item.email || {};
+                    const priority = item.priority || 'Baja';
+                    
+                    let priorityClasses = "bg-green-100 text-green-700 border-green-200";
+                    let icon = "fa-check";
+                    
+                    if (priority === 'Alta') {
+                        priorityClasses = "bg-red-100 text-red-700 border-red-200";
+                        icon = "fa-fire";
+                    } else if (priority === 'Media') {
+                        priorityClasses = "bg-yellow-100 text-yellow-700 border-yellow-200";
+                        icon = "fa-bolt";
+                    }
+                    
+                    let cuerpo = (email.body || '').trim();
+                    if (cuerpo.length > 300) {
+                        cuerpo = cuerpo.substring(0, 300) + '...';
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow relative overflow-hidden group";
+                    
+                    let suggestedReplyHtml = '';
+                    if (item.suggested_reply) {
+                        suggestedReplyHtml = `
+                            <div class="mt-4 bg-blue-50/50 border border-blue-100 rounded-xl p-4">
+                                <div class="flex items-center gap-2 text-blue-600 font-semibold mb-2 text-sm uppercase tracking-wider">
+                                    <i class="fa-solid fa-lightbulb"></i> Sugerencia de Respuesta
+                                </div>
+                                <p class="text-gray-700 text-sm italic">${item.suggested_reply.replace(/\\n/g, '<br>')}</p>
+                            </div>
+                        `;
+                    }
+
+                    card.innerHTML = `
+                        <!-- Decoración de color lateral -->
+                        <div class="absolute left-0 top-0 bottom-0 w-1 ${priority === 'Alta' ? 'bg-red-500' : priority === 'Media' ? 'bg-yellow-500' : 'bg-green-500'}"></div>
+                        
+                        <div class="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4 pl-3">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-900 mb-1 leading-tight">${email.subject || 'Sin Asunto'}</h3>
+                                <p class="text-sm text-gray-500 flex items-center gap-2">
+                                    <i class="fa-regular fa-user"></i> ${email.sender || 'Desconocido'}
+                                </p>
+                            </div>
+                            <div class="shrink-0">
+                                <span class="px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-1.5 uppercase tracking-wide shadow-sm ${priorityClasses}">
+                                    <i class="fa-solid ${icon}"></i> Prioridad ${priority}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="pl-3">
+                            <div class="bg-gray-50 rounded-xl p-4 text-sm text-gray-600 font-mono overflow-hidden">
+                                ${cuerpo.replace(/\\n/g, '<br>')}
+                            </div>
+                            ${suggestedReplyHtml}
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-2xl p-8 text-center text-red-600">
+                        <i class="fa-solid fa-triangle-exclamation text-4xl mb-3"></i>
+                        <h2 class="text-lg font-bold mb-1">Error al cargar</h2>
+                        <p class="text-sm opacity-80">Asegúrate de ejecutar el agente primero para generar el archivo JSON local.</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Cargar correos al iniciar
+        window.onload = cargarCorreos;
+    </script>
+</body>
+</html>
