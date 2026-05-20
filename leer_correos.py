@@ -23,6 +23,10 @@ def leer_resultados():
             respuesta = item.get("suggested_reply", "")
             if respuesta:
                 print(f"💡 RESPUESTA SUGERIDA:\n{respuesta}")
+                
+            accion = item.get("action", "Ninguna")
+            if accion != "Ninguna":
+                print(f"⚙️ ACCIÓN SUGERIDA: {accion}")
             
             print("-" * 50)
             

@@ -38,22 +38,3 @@ El sistema ha sido desarrollado en Python siguiendo un diseño orientado a objet
 
 El agente se ejecuta de manera local, requiriendo configuración de variables de entorno (`.env`) para la inyección segura de credenciales. El funcionamiento general es robusto para el análisis directo de los mensajes, logrando separar de manera coherente el spam de la información importante.
 
-## 4. Evaluación y Análisis Crítico (Autoevaluación)
-
-Con base en la rúbrica establecida, a continuación se presenta una evaluación crítica del proyecto actual:
-
-### 1. Definición del problema y justificación del agente (Puntaje estimado: 25/25 - Superior)
-**Análisis:** El problema abordado es realista, bien contextualizado y representativo de una necesidad actual (sobrecarga cognitiva por correo electrónico). La justificación explica con profundidad por qué un sistema basado en reglas es insuficiente y cómo la aplicación de un LLM aporta valor directo mediante la comprensión contextual profunda y la generación automatizada de respuestas, aportando ventajas operativas sobre chatbots simples.
-
-### 2. Diseño de la arquitectura del agente (Puntaje estimado: 15/25 - Básico)
-**Análisis:** La arquitectura actual incluye los componentes esenciales para la interacción con un LLM, pero presenta omisiones frente a una arquitectura avanzada completa. Específicamente, carece de un pipeline RAG (Retrieval-Augmented Generation), ya que no utiliza embeddings ni una base de datos vectorial para mantener un historial contextual. El flujo de decisión es claro y directo, pero su estado (stateless) limita el análisis de hilos complejos de correo.
-
-### 3. Implementación técnica y funcionamiento del sistema (Puntaje estimado: 20/25 - Alto)
-**Análisis:** El agente funciona correctamente y de forma estable. Realiza la recuperación (retrieval) directa desde la fuente (IMAP), clasifica eficientemente la información, genera respuestas coherentes y maneja adecuadamente los fallos en la estructura de salida de la IA (limpiando los retornos de Markdown para extraer el JSON). El código es organizado, sin embargo, no integra *Tools* o funciones nativas (Function Calling) en las que el agente pueda tomar acciones sobre el servidor de correo o consultar fuentes de terceros.
-
-### 4. Evaluación, análisis crítico e interpretación de resultados (Puntaje estimado: 25/25 - Superior)
-**Análisis Crítico de Limitaciones y Mejoras Futuras:**
-- **Problemas de Alucinaciones:** Al utilizar un modelo generativo sin restricciones fuertes de contexto base, existe el riesgo de alucinación o la proposición de respuestas no alineadas con el tono corporativo real si el correo inicial es demasiado ambiguo.
-- **Gestión de Contexto Ausente:** La evaluación de correos de forma aislada penaliza la efectividad del sistema ante hilos de respuesta (threads) largos. Si un correo hace referencia a una conversación anterior no presente en el cuerpo, el agente perderá el significado global.
-- **Escalabilidad y Dependencia de Formato:** Forzar la salida de JSON mediante texto plano es funcional, pero susceptible a fallos frente a actualizaciones del modelo.
-- **Trabajo Futuro:** Es imperativa la implementación de una base de datos vectorial (como ChromaDB, Weaviate o Pinecone) para almacenar el historial e indexar interacciones pasadas. Del mismo modo, incorporar RAG permitirá inyectar políticas de empresa en las respuestas, y el uso de *Tools* permitirá que el agente interactúe bidireccionalmente, por ejemplo, respondiendo autónomamente los correos de baja prioridad o añadiendo eventos al calendario.

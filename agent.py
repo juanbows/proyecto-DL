@@ -5,8 +5,8 @@ import json
 from email.header import decode_header
 import google.generativeai as genai
 
-# Dependencias recomendadas a instalar posteriormente:
-# pip install google-generativeai python-dotenv
+# RAG y Vector DB
+import chromadb
 
 class EmailAgent:
     def __init__(self, email_user, email_pass, gemini_api_key, imap_server="imap.gmail.com"):
@@ -17,18 +17,36 @@ class EmailAgent:
         
         # Configurar Gemini
         genai.configure(api_key=gemini_api_key)
-        # Usamos el modelo más reciente (gemini-flash-latest es excelente para tareas rápidas de texto)
-        self.model = genai.GenerativeModel('gemini-flash-latest')
+        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # Inicializar Base de Datos Vectorial para RAG
+        self.chroma_client = chromadb.PersistentClient(path="./chroma_db")
+        self.collection = self.chroma_client.get_or_create_collection(name="company_knowledge")
+        self._seed_knowledge_base()
+
+    def _seed_knowledge_base(self):
+        """Puebla la base de datos vectorial con políticas de la empresa si está vacía."""
+        if self.collection.count() == 0:
+            policies = [
+                "Política de urgencia: Todos los correos que contengan las palabras 'factura', 'pago', 'urgente' o 'caída del servidor' son de prioridad Alta.",
+                "Política de spam: Los correos promocionales no solicitados de servicios SEO, desarrollo web o marketing digital se consideran SPAM.",
+                "Política de respuesta: Las respuestas a clientes deben ser siempre cordiales y confirmar que su solicitud está en proceso de revisión por el equipo.",
+                "Política interna: Los correos sobre actividades de integración, celebraciones o noticias generales son de prioridad Baja."
+            ]
+            ids = [f"pol_{i}" for i in range(len(policies))]
+            # chromadb automáticamente genera embeddings usando su modelo por defecto si no se le pasa una función de embedding
+            self.collection.add(documents=policies, ids=ids)
+            print("🧠 Base de datos de conocimiento inicializada.")
 
     def connect(self):
         """Conecta al servidor IMAP."""
         try:
             self.mail = imaplib.IMAP4_SSL(self.imap_server)
             self.mail.login(self.email_user, self.email_pass)
-            print("Conectado exitosamente al correo.")
+            print("✅ Conectado exitosamente al correo.")
             return True
         except Exception as e:
-            print(f"Error al conectar: {e}")
+            print(f"❌ Error al conectar: {e}")
             return False
 
     def fetch_unread_emails(self, limit=10):
@@ -47,7 +65,6 @@ class EmailAgent:
                     subject, encoding = decode_header(msg["Subject"])[0]
                     if isinstance(subject, bytes):
                         try:
-                            # Intenta decodificar con el encoding dado, o utf-8 si no existe
                             subject = subject.decode(encoding if encoding and encoding != "unknown-8bit" else "utf-8", errors="replace")
                         except LookupError:
                             subject = subject.decode("utf-8", errors="replace")
@@ -78,12 +95,11 @@ class EmailAgent:
         return ""
 
     def process_emails(self, emails):
-        """Analiza, detecta spam, prioriza y sugiere respuestas usando Gemini."""
+        """Analiza, detecta spam, prioriza y sugiere respuestas usando Gemini y RAG."""
         results = []
         for em in emails:
             print(f"Procesando correo: {em['subject']}")
             
-            # Realizar un único llamado a Gemini para extraer toda la información y ahorrar tiempo/tokens
             analysis = self._analyze_with_gemini(em)
             
             if analysis.get("is_spam", False):
@@ -93,10 +109,10 @@ class EmailAgent:
             results.append({
                 "email": em,
                 "priority": analysis.get("priority", "Baja"),
-                "suggested_reply": analysis.get("suggested_reply", "")
+                "suggested_reply": analysis.get("suggested_reply", ""),
+                "action": analysis.get("tool_action", "Ninguna")
             })
             
-        # Ordenar por prioridad (Alta > Media > Baja)
         priority_map = {"Alta": 1, "Media": 2, "Baja": 3}
         results.sort(key=lambda x: priority_map.get(x["priority"], 3))
         
@@ -104,41 +120,52 @@ class EmailAgent:
 
     def _analyze_with_gemini(self, email_data):
         """
-        Llama a Gemini para evaluar si es spam, definir prioridad y crear una respuesta.
+        Llama a Gemini inyectando contexto de RAG y forzando salida JSON estricta.
         """
+        # Retrieval-Augmented Generation (RAG): Buscar políticas relevantes
+        query_text = f"Asunto: {email_data['subject']} | Cuerpo: {email_data['body']}"
+        rag_results = self.collection.query(query_texts=[query_text], n_results=2)
+        
+        context_policies = ""
+        if rag_results and "documents" in rag_results and rag_results["documents"]:
+            context_policies = "\n".join(rag_results["documents"][0])
+
         prompt = f"""
         Actúa como un asistente ejecutivo inteligente. Analiza el siguiente correo electrónico:
         
+        [CONTEXTO - POLÍTICAS DE LA EMPRESA (Usa esto para guiar tu decisión de spam, prioridad y respuesta)]
+        {context_policies}
+        
+        [DATOS DEL CORREO]
         Remitente: {email_data['sender']}
         Asunto: {email_data['subject']}
         Cuerpo: {email_data['body']}
-        
-        Debes responder ÚNICAMENTE en formato JSON válido con la siguiente estructura (sin bloques de código extra):
-        {{
-            "is_spam": true o false,
-            "priority": "Alta", "Media" o "Baja",
-            "suggested_reply": "Un borrador de respuesta profesional en el idioma del correo, o vacío si es spam"
-        }}
         """
         
+        # Forzar JSON schema mediante Gemini API para evitar fallos de parseo
+        generation_config = genai.types.GenerationConfig(
+            response_mime_type="application/json",
+            response_schema=genai.types.Schema(
+                type=genai.types.Type.OBJECT,
+                properties={
+                    "is_spam": genai.types.Schema(type=genai.types.Type.BOOLEAN, description="True si es spam según el contexto"),
+                    "priority": genai.types.Schema(type=genai.types.Type.STRING, enum=["Alta", "Media", "Baja"], description="Nivel de prioridad"),
+                    "suggested_reply": genai.types.Schema(type=genai.types.Type.STRING, description="Borrador de respuesta formal"),
+                    "tool_action": genai.types.Schema(type=genai.types.Type.STRING, description="Acción a delegar: 'escalar_a_soporte', 'archivar', 'notificar_finanzas' o 'ninguna'")
+                },
+                required=["is_spam", "priority", "suggested_reply", "tool_action"]
+            )
+        )
+        
         try:
-            response = self.model.generate_content(prompt)
-            # Limpiar posible formato markdown en la respuesta
-            response_text = response.text.strip()
-            if response_text.startswith("```json"):
-                response_text = response_text.replace("```json", "").replace("```", "").strip()
-            
-            return json.loads(response_text)
+            response = self.model.generate_content(prompt, generation_config=generation_config)
+            return json.loads(response.text)
         except Exception as e:
             print(f"Error consultando a Gemini: {e}")
-            return {"is_spam": False, "priority": "Baja", "suggested_reply": "No se pudo generar respuesta."}
+            return {"is_spam": False, "priority": "Baja", "suggested_reply": "No se pudo generar respuesta.", "tool_action": "Ninguna"}
 
 if __name__ == "__main__":
     print("--- Agente de Correos Iniciado ---")
-    
-    # Para usarlo de forma segura, lee las variables de entorno
-    # 1. Crea un archivo .env en esta carpeta
-    # 2. Agrega: EMAIL_USER=tu_correo@gmail.com, EMAIL_PASS=tu_clave, GEMINI_API_KEY=tu_api_key
     
     from dotenv import load_dotenv
     load_dotenv()
@@ -155,11 +182,8 @@ if __name__ == "__main__":
             unread = agent.fetch_unread_emails(limit=5)
             if unread:
                 processed = agent.process_emails(unread)
-                # Guardar el JSON en un archivo para poder verlo
                 with open("emails_procesados.json", "w", encoding="utf-8") as f:
                     json.dump(processed, f, indent=2, ensure_ascii=False)
                 print("¡Proceso terminado! Los resultados se han guardado en 'emails_procesados.json'.")
             else:
                 print("No hay correos nuevos.")
-        else:
-            print("No se pudo iniciar el agente debido a un error de conexión.")
