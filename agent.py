@@ -17,7 +17,8 @@ class EmailAgent:
         
         # Configurar Gemini
         genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel('gemini-1.5-flash')
+        model_name = os.getenv("GEMINI_MODEL") or "models/gemini-flash-latest"
+        self.model = genai.GenerativeModel(model_name)
         
         # Inicializar Base de Datos Vectorial para RAG
         self.chroma_client = chromadb.PersistentClient(path="./chroma_db")
@@ -36,17 +37,17 @@ class EmailAgent:
             ids = [f"pol_{i}" for i in range(len(policies))]
             # chromadb automáticamente genera embeddings usando su modelo por defecto si no se le pasa una función de embedding
             self.collection.add(documents=policies, ids=ids)
-            print("🧠 Base de datos de conocimiento inicializada.")
+            print("Base de datos de conocimiento inicializada.")
 
     def connect(self):
         """Conecta al servidor IMAP."""
         try:
             self.mail = imaplib.IMAP4_SSL(self.imap_server)
             self.mail.login(self.email_user, self.email_pass)
-            print("✅ Conectado exitosamente al correo.")
+            print("Conectado exitosamente al correo.")
             return True
         except Exception as e:
-            print(f"❌ Error al conectar: {e}")
+            print(f"Error al conectar: {e}")
             return False
 
     def fetch_unread_emails(self, limit=10):
@@ -145,16 +146,29 @@ class EmailAgent:
         # Forzar JSON schema mediante Gemini API para evitar fallos de parseo
         generation_config = genai.types.GenerationConfig(
             response_mime_type="application/json",
-            response_schema=genai.types.Schema(
-                type=genai.types.Type.OBJECT,
+            response_schema=genai.protos.Schema(
+                type_=genai.protos.Type.OBJECT,
                 properties={
-                    "is_spam": genai.types.Schema(type=genai.types.Type.BOOLEAN, description="True si es spam según el contexto"),
-                    "priority": genai.types.Schema(type=genai.types.Type.STRING, enum=["Alta", "Media", "Baja"], description="Nivel de prioridad"),
-                    "suggested_reply": genai.types.Schema(type=genai.types.Type.STRING, description="Borrador de respuesta formal"),
-                    "tool_action": genai.types.Schema(type=genai.types.Type.STRING, description="Acción a delegar: 'escalar_a_soporte', 'archivar', 'notificar_finanzas' o 'ninguna'")
+                    "is_spam": genai.protos.Schema(
+                        type_=genai.protos.Type.BOOLEAN,
+                        description="True si es spam según el contexto",
+                    ),
+                    "priority": genai.protos.Schema(
+                        type_=genai.protos.Type.STRING,
+                        enum=["Alta", "Media", "Baja"],
+                        description="Nivel de prioridad",
+                    ),
+                    "suggested_reply": genai.protos.Schema(
+                        type_=genai.protos.Type.STRING,
+                        description="Borrador de respuesta formal",
+                    ),
+                    "tool_action": genai.protos.Schema(
+                        type_=genai.protos.Type.STRING,
+                        description="Acción a delegar: 'escalar_a_soporte', 'archivar', 'notificar_finanzas' o 'ninguna'",
+                    ),
                 },
-                required=["is_spam", "priority", "suggested_reply", "tool_action"]
-            )
+                required=["is_spam", "priority", "suggested_reply", "tool_action"],
+            ),
         )
         
         try:

@@ -1,5 +1,7 @@
 .env
 venv/
+.venv/
 __pycache__/
 *.pyc
 emails_procesados.json
+chroma_db/

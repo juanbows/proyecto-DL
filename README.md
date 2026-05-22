@@ -30,8 +30,33 @@ El sistema ha sido desarrollado en Python siguiendo un diseño orientado a objet
 - **`agent.py`**: Motor principal. Implementa `EmailAgent`, que orquesta IMAP, ChromaDB (para RAG y embeddings automáticos) y la API de Gemini (configurada con schemas y validación estricta).
 - **`leer_correos.py`**: Interfaz CLI que lee el estado persistido y presenta de manera amigable las prioridades, respuestas y acciones (tools) sugeridas.
 - **`index.html` y `crear_notebook.py`**: Interfaces adicionales para consumo web e interactivo.
+- **`local_server.py`**: Servidor local para la interfaz web (endpoints para demo e IMAP).
 
-## 4. Evaluación, Análisis Crítico e Interpretación de Resultados
+## 4. Interfaz Web (localhost)
+
+1) (Opcional) Crea tu archivo `.env` (si no existe, `run_local.sh` lo crea automáticamente desde `.env.example`):
+
+```bash
+cp .env.example .env
+```
+
+2) Edita `.env` y completa como mínimo `GEMINI_API_KEY`. Para procesar IMAP también necesitas `EMAIL_USER` y `EMAIL_PASS`.
+
+3) Levanta la UI:
+
+```bash
+bash run_local.sh
+```
+
+4) Abre en el navegador:
+
+- `http://127.0.0.1:8000`
+
+En la UI puedes:
+- Pegar un correo (demo) y analizarlo con Gemini.
+- Procesar correos no leídos vía IMAP y verlos en la bandeja (se guarda en `emails_procesados.json`).
+
+## 5. Evaluación, Análisis Crítico e Interpretación de Resultados
 
 De acuerdo con la rúbrica establecida, esta es la reevaluación del proyecto tras la implementación de las mejoras arquitectónicas:
 

@@ -6,7 +6,7 @@ notebook = {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "# 🤖 Agente de Detección de Spam con IA\n",
+    "# Agente de Detección de Spam con IA\n",
     "Este cuadernillo contiene el código completo para conectarse al correo, leer los mensajes no leídos, evaluarlos con Gemini y mostrar los resultados de forma estructurada.\n",
     "\n",
     "**Nota:** Asegúrate de tener tu archivo `.env` configurado en esta misma carpeta."
@@ -132,7 +132,7 @@ notebook = {
    "metadata": {},
    "source": [
     "--- \n",
-    "## 📊 Visualización de Resultados\n",
+    "## Visualización de Resultados\n",
     "Ejecuta la celda de abajo para leer el archivo JSON generado y mostrar los correos en un formato amigable visualmente utilizando HTML."
    ]
   },
@@ -153,7 +153,7 @@ notebook = {
     "        display(HTML(\"<h3>No hay correos para mostrar.</h3>\"))\n",
     "    else:\n",
     "        # En Jupyter podemos renderizar tarjetas HTML para que se vea mucho más bonito que la terminal\n",
-    "        html_content = \"<h2>📥 Bandeja de Entrada - Agente IA</h2><div style='display:flex; flex-direction:column; gap:15px;'>\"\n",
+    "        html_content = \"<h2>Bandeja de Entrada - Agente IA</h2><div style='display:flex; flex-direction:column; gap:15px;'>\"\n",
     "        \n",
     "        color_map = {\"Alta\": \"#ef4444\", \"Media\": \"#f59e0b\", \"Baja\": \"#10b981\"}\n",
     "        \n",
@@ -175,7 +175,7 @@ notebook = {
     "                <p style='margin:8px 0; color:#4b5563; font-family:sans-serif; font-size:0.95em;'><strong>De:</strong> {email.get('sender', 'Desconocido')}</p>\n",
     "            \"\"\"\n",
     "            if item.get(\"suggested_reply\"):\n",
-    "                card += f\"<div style='background:#eff6ff; padding:12px; border-left:4px solid #3b82f6; margin:12px 0; border-radius:4px; font-family:sans-serif;'><strong style='color:#1d4ed8'>💡 Sugerencia de Respuesta:</strong><br><span style='color:#1e3a8a'>{item['suggested_reply']}</span></div>\"\n",
+    "                card += f\"<div style='background:#eff6ff; padding:12px; border-left:4px solid #3b82f6; margin:12px 0; border-radius:4px; font-family:sans-serif;'><strong style='color:#1d4ed8'>Sugerencia de Respuesta:</strong><br><span style='color:#1e3a8a'>{item['suggested_reply']}</span></div>\"\n",
     "            \n",
     "            card += f\"<p style='color:#6b7280; font-size:0.9em; font-family:sans-serif; background:#f9fafb; padding:10px; border-radius:6px; font-style:italic;'><strong>Cuerpo:</strong><br>{cuerpo}</p></div>\"\n",
     "            html_content += card\n",

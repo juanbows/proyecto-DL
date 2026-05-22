@@ -9,24 +9,24 @@ def leer_resultados():
             print("No hay correos para mostrar.")
             return
 
-        print("\n" + "★"*50)
+        print("\n" + "-"*50)
         print("Bandeja de Entrada - Agente IA")
-        print("★"*50 + "\n")
+        print("-"*50 + "\n")
         
         for item in datos:
             email = item.get("email", {})
             
-            print(f"📌 PRIORIDAD: {item.get('priority', 'N/A')}")
-            print(f"📧 DE: {email.get('sender', 'Desconocido')}")
-            print(f"📝 ASUNTO: {email.get('subject', 'Sin asunto')}")
+            print(f"PRIORIDAD: {item.get('priority', 'N/A')}")
+            print(f"DE: {email.get('sender', 'Desconocido')}")
+            print(f"ASUNTO: {email.get('subject', 'Sin asunto')}")
             
             respuesta = item.get("suggested_reply", "")
             if respuesta:
-                print(f"💡 RESPUESTA SUGERIDA:\n{respuesta}")
+                print(f"RESPUESTA SUGERIDA:\n{respuesta}")
                 
             accion = item.get("action", "Ninguna")
             if accion != "Ninguna":
-                print(f"⚙️ ACCIÓN SUGERIDA: {accion}")
+                print(f"ACCION SUGERIDA: {accion}")
             
             print("-" * 50)
             
@@ -35,7 +35,7 @@ def leer_resultados():
             if len(cuerpo) > 250:
                 cuerpo = cuerpo[:250].replace('\n', ' ') + " [...]"
             
-            print(f"📄 RESUMEN DEL MENSAJE:\n{cuerpo}")
+            print(f"RESUMEN DEL MENSAJE:\n{cuerpo}")
             print("=" * 60 + "\n")
             
     except FileNotFoundError:
