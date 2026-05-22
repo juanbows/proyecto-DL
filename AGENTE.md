@@ -1,4 +1,4 @@
-# Documento técnico: Agente de correos (RAG + Gemini)
+# Agente de correos (RAG + Gemini)
 
 Este documento describe cómo funciona el agente, cómo está armado el proyecto y cómo se ejecuta en local.
 
@@ -37,7 +37,7 @@ Claves:
 - `GEMINI_MODEL` (opcional): modelo a usar. Por defecto: `models/gemini-flash-latest`.
 - `HOST` / `PORT` (opcionales): bind del servidor local. Por defecto: `127.0.0.1:8000`.
 
-## Flujo del agente (alto nivel)
+## Flujo del agente
 
 1) **Conexión IMAP**
    - `EmailAgent.connect()` usa `imaplib.IMAP4_SSL` y `login()`.
@@ -76,7 +76,7 @@ Claves:
    - `process_emails()` filtra spam y ordena por prioridad (Alta > Media > Baja).
    - El script principal (`if __name__ == "__main__":`) guarda resultados en `emails_procesados.json`.
 
-## Interfaz Web (localhost)
+## -
 
 La UI no habla directo con IMAP ni con Gemini; lo hace mediante el backend local:
 
@@ -90,7 +90,7 @@ La UI tiene dos modos:
 - **Demo rápida**: pegas `sender/subject/body` y obtienes el JSON del análisis.
 - **Procesar IMAP**: solicita al backend procesar correos no leídos (por defecto 30) y luego refresca la bandeja.
 
-## Cómo se armó (decisiones de diseño)
+## ¿Cómo se armó?
 
 - **Persistencia simple**: `emails_procesados.json` como interfaz entre agente y vistas (CLI/UI).
 - **RAG local**: ChromaDB persistente para mantener políticas en disco sin depender de un servicio externo.
@@ -102,17 +102,4 @@ La UI tiene dos modos:
 - El paquete `google.generativeai` emite un warning de deprecación. El código funciona, pero conviene migrar a `google.genai` cuando el proyecto lo requiera.
 - `EMAIL_PASS` para Gmail suele requerir contraseña de aplicación y configuración de seguridad en la cuenta.
 - El agente procesa sólo texto plano (`text/plain`). Correos HTML pueden llegar sin cuerpo útil si no tienen parte texto.
-
-## Ejecución local
-
-1) Preparar entorno (si no existe `.env`, se crea desde `.env.example`):
-
-```bash
-cd proyecto-DL
-bash run_local.sh
-```
-
-2) Abrir:
-
-- `http://127.0.0.1:8000`
 
